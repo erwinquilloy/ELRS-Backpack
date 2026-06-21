@@ -3,6 +3,10 @@
 #include "module_base.h"
 #include "msptypes.h"
 
+#if defined(OLED_SSD1306)
+#include <U8g2lib.h>
+#endif
+
 #define VRX_UART_BAUD           115200
 
 #define MAVLINK_SYSTEM_ID       1
@@ -18,6 +22,7 @@ class MFDCrossbow : public ModuleBase
 {
 public:
     MFDCrossbow(HardwareSerial *port);
+    void Init();
     void SendGpsTelemetry(crsf_packet_gps_t *packet);
     void Loop(uint32_t now);
 
@@ -25,6 +30,13 @@ private:
     void SendHeartbeat();
     void SendGpsRawInt();
     void SendGlobalPositionInt();
+
+#if defined(OLED_SSD1306)
+    void InitDisplay();
+    void DrawDisplay(uint32_t now);
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C *m_oled;
+    uint32_t displayLastDrawn;
+#endif
 
     HardwareSerial *m_port;
     uint32_t gpsLastSent;

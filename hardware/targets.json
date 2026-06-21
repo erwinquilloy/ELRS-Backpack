@@ -687,6 +687,18 @@
                 "firmware": "MFD_Crossbow_ESP32S3_Backpack",
                 "upload_methods": ["uart", "wifi"],
                 "platform": "esp32-s3"
+            },
+            "heltec-wifi-kit-32": {
+                "product_name": "Heltec WiFi Kit 32 (V2) with OLED",
+                "firmware": "MFD_Crossbow_HeltecWifiKit32_Backpack",
+                "upload_methods": ["uart", "wifi"],
+                "platform": "esp32"
+            },
+            "esp32-oled": {
+                "product_name": "Generic ESP32 + external SSD1306 OLED (SDA 21 / SCL 22)",
+                "firmware": "MFD_Crossbow_ESP32_OLED_Backpack",
+                "upload_methods": ["uart", "wifi"],
+                "platform": "esp32"
             }
         }
     }
