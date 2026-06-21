@@ -24,6 +24,8 @@ public:
     MFDCrossbow(HardwareSerial *port);
     void Init();
     void SendGpsTelemetry(crsf_packet_gps_t *packet);
+    void SendBatteryTelemetry(uint8_t *rawCrsfPacket);
+    void SendLinkTelemetry(uint8_t *rawCrsfPacket);
     void Loop(uint32_t now);
 
 private:
@@ -51,4 +53,14 @@ private:
     int32_t gps_alt;    // GPS altitude (Altitude above MSL)
     float gps_hdop;     // GPS HDOP
     uint8_t fixType;    // GPS fix type. 0-1: no fix, 2: 2D fix, 3: 3D fix
+
+    // Battery sensor, last value seen from CRSF (display only)
+    uint32_t batteryLastUpdated;
+    uint16_t battery_dV;        // voltage in 0.1 V
+    uint8_t  battery_percent;
+
+    // Link statistics, last value seen from CRSF (display only)
+    uint32_t linkLastUpdated;
+    int8_t  uplink_rssi_dbm;    // negative dBm
+    uint8_t uplink_lq;          // %
 };

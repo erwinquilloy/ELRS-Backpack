@@ -22,8 +22,41 @@ MFDCrossbow::MFDCrossbow(HardwareSerial *port) :
     gps_sats(0),
     gps_alt(0),
     gps_hdop(100),
-    fixType(3)
+    fixType(3),
+    batteryLastUpdated(0),
+    battery_dV(0),
+    battery_percent(0),
+    linkLastUpdated(0),
+    uplink_rssi_dbm(0),
+    uplink_lq(0)
 {
+}
+
+void
+MFDCrossbow::SendBatteryTelemetry(uint8_t *rawCrsfPacket)
+{
+    // CRSF BATTERY_SENSOR payload (after type byte at index 2):
+    //   [3..4] voltage   big-endian, 0.1 V
+    //   [5..6] current   big-endian, 0.1 A
+    //   [7..9] mAh used  big-endian
+    //   [10]   remaining %
+    battery_dV      = ((uint16_t)rawCrsfPacket[3] << 8) | rawCrsfPacket[4];
+    battery_percent = rawCrsfPacket[10];
+    batteryLastUpdated = millis();
+}
+
+void
+MFDCrossbow::SendLinkTelemetry(uint8_t *rawCrsfPacket)
+{
+    // CRSF LINK_STATISTICS payload (after type byte at index 2):
+    //   [3]  uplink_RSSI_1   negate for dBm
+    //   [4]  uplink_RSSI_2
+    //   [5]  uplink_LQ       % (0..100)
+    //   [6]  uplink_SNR      int8
+    //   ... downlink fields at [10..12]
+    uplink_rssi_dbm = -(int8_t)rawCrsfPacket[3];
+    uplink_lq       = rawCrsfPacket[5];
+    linkLastUpdated = millis();
 }
 
 void
@@ -127,24 +160,44 @@ MFDCrossbow::DrawDisplay(uint32_t now)
     }
 
     bool gpsFresh = (gps_sats > 0) && (now - gpsLastUpdated < 10000);
+    bool linkFresh = (linkLastUpdated != 0) && (now - linkLastUpdated < 5000);
+    bool batFresh  = (batteryLastUpdated != 0) && (now - batteryLastUpdated < 10000);
 
-    // Header — bold and prominent
-    snprintf(buf, sizeof(buf), "TRK %s S:%d",
-             gpsFresh ? "LINK" : "----", gps_sats);
-    m_oled->drawStr(0, 13, buf);
-
-    // Body — small font, 4 lines of telemetry
+    // Single-page layout: 6 rows of 6x10 text, fills 60 of 64 px.
     m_oled->setFont(u8g2_font_6x10_tr);
+
+    if (linkFresh)
+        snprintf(buf, sizeof(buf), "TRK %s S:%-2d LQ:%-3d",
+                 gpsFresh ? "LINK" : "----", gps_sats, uplink_lq);
+    else
+        snprintf(buf, sizeof(buf), "TRK %s S:%-2d LQ:--",
+                 gpsFresh ? "LINK" : "----", gps_sats);
+    m_oled->drawStr(0, 10, buf);
+
     snprintf(buf, sizeof(buf), "Lat %10.6f", lat / 1.0e7);
-    m_oled->drawStr(0, 26, buf);
+    m_oled->drawStr(0, 20, buf);
     snprintf(buf, sizeof(buf), "Lon %10.6f", lon / 1.0e7);
-    m_oled->drawStr(0, 38, buf);
-    snprintf(buf, sizeof(buf), "Alt %5.0fm  Spd %4.1fm/s",
+    m_oled->drawStr(0, 30, buf);
+    snprintf(buf, sizeof(buf), "Alt %4.0fm Spd %4.1fm/s",
              alt / 1000.0f, groundspeed / 100.0f);
-    m_oled->drawStr(0, 50, buf);
-    snprintf(buf, sizeof(buf), "Hdg %5.1f deg  Fix %d",
+    m_oled->drawStr(0, 40, buf);
+    snprintf(buf, sizeof(buf), "Hdg %5.1f  Fix %d",
              heading / 100.0f, fixType);
-    m_oled->drawStr(0, 62, buf);
+    m_oled->drawStr(0, 50, buf);
+
+    if (batFresh && linkFresh)
+        snprintf(buf, sizeof(buf), "Bat %2u.%uV %3u%% R%d",
+                 battery_dV / 10, battery_dV % 10, battery_percent,
+                 uplink_rssi_dbm);
+    else if (batFresh)
+        snprintf(buf, sizeof(buf), "Bat %2u.%uV %3u%% R---",
+                 battery_dV / 10, battery_dV % 10, battery_percent);
+    else if (linkFresh)
+        snprintf(buf, sizeof(buf), "Bat --.-V  --%% R%d",
+                 uplink_rssi_dbm);
+    else
+        snprintf(buf, sizeof(buf), "Bat --.-V  --%% R---");
+    m_oled->drawStr(0, 60, buf);
 
     m_oled->sendBuffer();
 }

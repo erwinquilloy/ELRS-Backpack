@@ -15,16 +15,46 @@ overrides, display inversion).
 
 ## What you see on the OLED
 
-- **Running** — GPS coordinates, sats, fix type, altitude, ground speed,
-  heading, and a `LINK` / `----` indicator driven by the freshness of the last
-  CRSF telemetry packet.
-- **Binding** — instruction screen prompting you to send a bind packet from
-  the TX with the matching binding phrase.
-- **WiFi update** — SSID (`ExpressLRS VRx Backpack`), password (`expresslrs`),
-  and the OTA URL (`http://10.0.0.1`).
+**Running mode** — six rows on a single page:
+
+```
+TRK LINK S:08 LQ:99
+Lat   14.123456
+Lon  121.123456
+Alt  125m Spd  8.3m/s
+Hdg 273.5  Fix 3
+Bat 16.2V  78% R-42
+```
+
+| Field | Meaning | CRSF source |
+| --- | --- | --- |
+| `TRK LINK` / `TRK ----` | GPS data is fresh (< 10 s) | `crsf_packet_gps_t` |
+| `S:NN` | Satellite count | `crsf_packet_gps_t.satcnt` |
+| `LQ:NN` | Uplink link quality 0–100% | `CRSF_FRAMETYPE_LINK_STATISTICS` |
+| `Lat / Lon` | Position in decimal degrees | `crsf_packet_gps_t` |
+| `Alt` | Altitude above takeoff, metres | `crsf_packet_gps_t.altitude` |
+| `Spd` | Ground speed in m/s | `crsf_packet_gps_t.speed` |
+| `Hdg` | Heading in degrees | `crsf_packet_gps_t.heading` |
+| `Fix` | GPS fix type (0–1 none, 2 = 2D, 3 = 3D) | derived |
+| `Bat NN.NV NN%` | Pack voltage and remaining battery | `CRSF_FRAMETYPE_BATTERY_SENSOR` |
+| `R-NN` | Uplink RSSI in dBm (always negative) | `CRSF_FRAMETYPE_LINK_STATISTICS` |
+
+Each metric expires independently. Stale fields render as `---` instead of
+showing a misleading old reading: GPS staleness threshold is 10 s, link
+statistics 5 s, battery 10 s.
+
+**Binding mode** — instruction screen prompting you to send a bind packet
+from the TX with the matching binding phrase.
+
+**WiFi update mode** — SSID (`ExpressLRS VRx Backpack`), password
+(`expresslrs`), and the OTA URL (`http://10.0.0.1`).
 
 The display refreshes at ~4 Hz to keep the I2C bus from contending with the
 10 Hz MAVLink stream to the tracker.
+
+Flight mode is not currently shown because the TX backpack firmware does not
+forward `CRSF_FRAMETYPE_FLIGHT_MODE` (0x21) over ESP-NOW. Adding it would
+require a matching change on the TX side.
 
 ## Heltec WiFi Kit 32 V2
 
